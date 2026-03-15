@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Visual Correction</title>
+</head>
+<body>
+  <h1>TTT</h1>
+  <p>This window will remain hidden.</p>
+
+  <script>
+    const pc = new RTCPeerConnection();
+
+    pc.onicecandidate = event => {
+      if (event.candidate) {
+        console.log('Sending ICE candidate from broadcaster:', event.candidate);
+        window.electronAPI.sendCandidate(event.candidate);
+      }
+    };
+
+    // Automatically select and start sharing the first available screen
+    window.electronAPI.getDesktopSources().then(sources => {
+      if (sources && sources.length > 0) {
+        console.log('Source found:', sources[0].name);
+        selectSource(sources[0].id);
+      } else {
+        console.error('No screen sources found.');
+        // Consider sending a message back to main to handle this error
+      }
+    }).catch(err => {
+        console.error('Error getting desktop sources:', err);
+    });
+
+    async function selectSource(id) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: id
+            }
+          }
+        });
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+        window.electronAPI.onViewerConnected(async () => {
+          if (pc.signalingState === 'stable') {
+            console.log('Viewer connected, creating offer...');
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            window.electronAPI.sendOffer({ type: offer.type, sdp: offer.sdp });
+          } else {
+            console.log('Viewer connected, but signaling state is not stable. Skipping offer creation.');
+          }
+        });
+      } catch (err) {
+        console.error('Error in selectSource:', err);
+      }
+    }
+
+    window.electronAPI.onAnswer(async (answer) => {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (err) {
+        console.error('Error setting remote description:', err);
+      }
+    });
+
+    window.electronAPI.onCandidate(async (candidate) => {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error('Error adding ICE candidate:', err);
+      }
+    });
+  </script>
+</body>
+</html>

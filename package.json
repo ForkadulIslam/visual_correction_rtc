@@ -1,0 +1,43 @@
+{
+  "name": "visualcorrection",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "signal": "node signaling-server.js",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.yourcompany.visualcorrection",
+    "productName": "Visual Correction",
+    "files": [
+      "main.js",
+      "preload.js",
+      "broadcaster.html",
+      "viewer.html",
+      "signaling-server.js",
+      "package.json",
+      "icon.png",
+      ".env"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "dependencies": {
+    "electron": "^28.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.0.12"
+  }
+}
