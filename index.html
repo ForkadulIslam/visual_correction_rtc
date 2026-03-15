@@ -4,7 +4,7 @@
 <body>
   <h2>Sharing screen via WebRTC...</h2>
   <script>
-    const ws = new WebSocket('ws://localhost:3000');
+    const ws = new WebSocket('ws://localhost:59123');
     let peer = new RTCPeerConnection();
 
     ws.onmessage = async ({ data }) => {

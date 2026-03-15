@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const port = 3000;
+const port = 59123;
 
 // Create HTTP server
 const server = http.createServer((req, res) => {
@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
       // Also handle wss for ngrok
       const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
       const host = req.headers.host || `localhost:${port}`;
-      const modifiedHtml = data.replace('ws://YOUR_SERVER_IP_ADDRESS:3000', `${protocol}://${host}`);
+      const modifiedHtml = data.replace('ws://YOUR_SERVER_IP_ADDRESS:59123', `${protocol}://${host}`);
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(modifiedHtml);
     });
