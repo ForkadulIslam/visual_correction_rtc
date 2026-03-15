@@ -1,16 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Screen Viewer</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen Viewer - AI Assistant</title>
   <style>
+    :root {
+      --primary-color: #4285f4;
+      --bg-dark: #121212;
+      --panel-bg: rgba(30, 30, 30, 0.95);
+      --text-main: #e0e0e0;
+      --accent: #bada55;
+    }
+
     body {
       margin: 0;
       padding: 0;
-      background-color: black;
+      background-color: var(--bg-dark);
       overflow: hidden;
-      color: white;
-      font-family: Arial, sans-serif;
+      color: var(--text-main);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+
     .videoContainer {
       position: relative;
       width: 100vw;
@@ -19,11 +30,14 @@
       justify-content: center;
       align-items: center;
     }
+
     .videoContainer video {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+      box-shadow: 0 0 50px rgba(0,0,0,0.5);
     }
+
     #selectionCanvas {
       position: absolute;
       top: 0;
@@ -31,37 +45,146 @@
       width: 100%;
       height: 100%;
       cursor: crosshair;
-      background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent overlay */
-      display: none; /* Hidden by default */
+      background-color: rgba(0, 0, 0, 0.4);
+      display: none;
+      z-index: 10;
     }
+
     #statusOverlay {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 0, 0, 0.6);
+      background-color: rgba(0, 0, 0, 0.8);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      font-size: 1.5em;
+      font-size: 1.2em;
       text-align: center;
+      z-index: 20;
     }
-    #screenshotBtn {
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #controls {
       position: absolute;
-      bottom: 20px;
-      right: 20px; /* Adjust position as fullscreenBtn is removed */
-      padding: 10px 15px;
-      background-color: rgba(50, 50, 50, 0.7);
-      color: white;
-      border: 1px solid #555;
-      border-radius: 5px;
-      cursor: pointer;
-      opacity: 0.6;
-      transition: opacity 0.2s;
+      bottom: 25px;
+      right: 25px;
+      display: flex;
+      gap: 15px;
+      z-index: 30;
     }
-    #screenshotBtn:hover {
-      opacity: 1;
+
+    .btn {
+      padding: 12px 24px;
+      background-color: rgba(60, 60, 60, 0.8);
+      color: white;
+      border: 1px solid #444;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    #analysisPanel {
+      position: absolute;
+      top: 20px;
+      right: -450px; /* Hidden by default */
+      width: 400px;
+      max-height: calc(100vh - 40px);
+      background: var(--panel-bg);
+      border-left: 4px solid var(--primary-color);
+      border-radius: 12px 0 0 12px;
+      padding: 25px;
+      overflow-y: auto;
+      transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 40;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+    }
+
+    #analysisPanel.visible {
+      right: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+    }
+
+    .panel-title {
+      color: var(--primary-color);
+      font-size: 1.4em;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 1.5em;
+    }
+
+    .close-btn:hover {
+      color: white;
+    }
+
+    #analysisContent {
+      line-height: 1.6;
+      font-size: 1em;
+      white-space: pre-wrap;
+    }
+
+    .analysis-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #aaa;
+      font-style: italic;
+    }
+
+    /* Markdown-ish styling for Gemini output */
+    #analysisContent strong {
+      color: var(--accent);
+      display: block;
+      margin-top: 15px;
+      font-size: 1.1em;
     }
   </style>
 </head>
@@ -70,15 +193,35 @@
   <div id="videoContainer" class="videoContainer">
     <video id="remoteVideo" autoplay playsinline muted></video>
     <canvas id="selectionCanvas"></canvas>
+    
     <div id="statusOverlay">
+      <div class="loader"></div>
       <div id="statusText">Connecting to server...</div>
     </div>
+
+    <div id="analysisPanel">
+      <div class="panel-header">
+        <h3 class="panel-title"><span>✨</span> Gemini Analysis</h3>
+        <button class="close-btn" onclick="togglePanel(false)">&times;</button>
+      </div>
+      <div id="analysisContent">
+        Select an area to begin analysis...
+      </div>
+    </div>
   </div>
-  <button id="screenshotBtn">Screenshot</button>
+
+  <div id="controls">
+    <button id="screenshotBtn" class="btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+      Analyze Screen
+    </button>
+  </div>
+
   <script>
-    const socket = new WebSocket('ws://YOUR_SERVER_IP_ADDRESS:59123');
+    const socket = new WebSocket('ws://' + location.host); // Fixed to use current host
     let peerConnection;
     let iceCandidateQueue = [];
+    
     const video = document.getElementById('remoteVideo');
     const statusOverlay = document.getElementById('statusOverlay');
     const statusText = document.getElementById('statusText');
@@ -86,11 +229,17 @@
     const videoContainer = document.getElementById('videoContainer');
     const selectionCanvas = document.getElementById('selectionCanvas');
     const selectionCtx = selectionCanvas.getContext('2d');
+    const analysisPanel = document.getElementById('analysisPanel');
+    const analysisContent = document.getElementById('analysisContent');
 
     let isSelecting = false;
     let selectionStartX, selectionStartY, selectionCurrentX, selectionCurrentY;
 
-    // Helper function to get the video's actual rendered dimensions and position
+    function togglePanel(show) {
+      if (show) analysisPanel.classList.add('visible');
+      else analysisPanel.classList.remove('visible');
+    }
+
     function getVideoRenderedDimensions() {
       const videoAspectRatio = video.videoWidth / video.videoHeight;
       const containerWidth = videoContainer.offsetWidth;
@@ -100,13 +249,11 @@
       let renderedWidth, renderedHeight, offsetX, offsetY;
 
       if (videoAspectRatio > containerAspectRatio) {
-        // Video is wider than container, constrained by width
         renderedWidth = containerWidth;
         renderedHeight = containerWidth / videoAspectRatio;
         offsetX = 0;
         offsetY = (containerHeight - renderedHeight) / 2;
       } else {
-        // Video is taller than container, constrained by height
         renderedHeight = containerHeight;
         renderedWidth = containerHeight * videoAspectRatio;
         offsetY = 0;
@@ -125,24 +272,18 @@
     }
 
     function initializePeerConnection() {
-      if (peerConnection) {
-        peerConnection.close();
-      }
+      if (peerConnection) peerConnection.close();
       video.srcObject = null;
-      iceCandidateQueue = []; // Reset queue for new connection
+      iceCandidateQueue = [];
       peerConnection = new RTCPeerConnection();
 
       peerConnection.ontrack = (event) => {
-        console.log('Received remote track');
         if (event.streams && event.streams[0]) {
           video.srcObject = event.streams[0];
         } else {
-          let inboundStream = new MediaStream([event.track]);
-          video.srcObject = inboundStream;
+          video.srcObject = new MediaStream([event.track]);
         }
-        video.play().then(() => {
-          hideStatus();
-        }).catch(error => console.error("Video play failed:", error));
+        video.play().then(hideStatus).catch(e => console.error("Video play error:", e));
       };
 
       peerConnection.onicecandidate = (event) => {
@@ -152,7 +293,6 @@
       };
 
       peerConnection.onconnectionstatechange = () => {
-        console.log(`Peer Connection State: ${peerConnection.connectionState}`);
         if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
           video.srcObject = null;
           setStatus('Connection lost. Waiting for broadcaster...');
@@ -161,10 +301,8 @@
     }
 
     socket.onopen = () => {
-      console.log('Connected to signaling server as viewer');
       setStatus('Waiting for stream...');
       socket.send(JSON.stringify({ type: 'viewer' }));
-      // Request an offer in case the broadcaster is already active
       socket.send(JSON.stringify({ type: 'request-offer' }));
     };
 
@@ -173,120 +311,77 @@
 
       switch (data.type) {
         case 'offer':
-          console.log('Offer received in viewer');
           setStatus('Connecting to peer...');
           initializePeerConnection();
           await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-
-          // Process any candidates that arrived early
-          console.log(`Processing ${iceCandidateQueue.length} queued ICE candidates.`);
           while(iceCandidateQueue.length > 0) {
-            const candidate = iceCandidateQueue.shift();
-            try {
-              await peerConnection.addIceCandidate(candidate);
-            } catch (err) {
-              console.error('Error adding queued ICE candidate:', err);
-            }
+            await peerConnection.addIceCandidate(iceCandidateQueue.shift());
           }
-
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           socket.send(JSON.stringify({ type: 'answer', answer: { type: answer.type, sdp: answer.sdp } }));
           break;
 
         case 'candidate':
-          console.log('Received ICE candidate:', data.candidate);
-          // Only process if sdpMid and sdpMLineIndex are present
-          if (data.candidate && data.candidate.sdpMid !== null && data.candidate.sdpMLineIndex !== null) {
+          if (data.candidate && data.candidate.sdpMid !== null) {
             const candidate = new RTCIceCandidate(data.candidate);
             if (peerConnection && peerConnection.remoteDescription) {
-              // If connection is ready, add candidate immediately
-              try {
-                await peerConnection.addIceCandidate(candidate);
-              } catch (err) {
-                console.error('Error adding ICE candidate:', err);
-              }
+              await peerConnection.addIceCandidate(candidate);
             } else {
-              // Otherwise, queue it for later
-              console.log('Queuing ICE candidate.');
               iceCandidateQueue.push(candidate);
             }
-          } else {
-            console.warn('Received malformed ICE candidate (sdpMid or sdpMLineIndex is null):', data.candidate);
           }
           break;
         
         case 'broadcaster-disconnected':
-          console.log('Broadcaster has disconnected.');
-          if (peerConnection) {
-            peerConnection.close();
-            peerConnection = null;
-          }
+          if (peerConnection) peerConnection.close();
           video.srcObject = null;
           setStatus('Stream ended. Waiting for broadcaster...');
           break;
 
         case 'analysis-response':
-          console.log('%c Gemini Analysis Result: ', 'background: #222; color: #bada55; font-size: 14px; font-weight: bold;');
-          console.log(data.text);
+          analysisContent.innerHTML = formatAnalysis(data.text);
           break;
         
         case 'analysis-error':
-          console.error('Gemini Analysis Error:', data.error);
+          analysisContent.innerHTML = `<span style="color: #ff5555;">Error: ${data.error}</span>`;
           break;
       }
     };
 
-    socket.onclose = () => {
-      console.log('Disconnected from signaling server.');
-      if (peerConnection) {
-        peerConnection.close();
-      }
-      video.srcObject = null;
-      setStatus('Disconnected from server. Please refresh.');
-    };
+    function formatAnalysis(text) {
+      // Simple formatter for the specific Gemini response structure
+      return text
+        .replace(/\*\*Extracted Text \(OCR\) :\s*\*\*/g, '<strong>Extracted Text (OCR)</strong>')
+        .replace(/\*\*Question Present\s*\*\*/g, '<strong>Question Present</strong>')
+        .replace(/\*\*Concise Explanation\s*\*\*/g, '<strong>Concise Explanation</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    }
 
     screenshotBtn.addEventListener('click', () => {
       if (video.srcObject && !video.paused) {
         if (!isSelecting) {
-          // Enter selection mode
           selectionCanvas.style.display = 'block';
           screenshotBtn.textContent = 'Cancel Selection';
           isSelecting = true;
           selectionCanvas.width = videoContainer.offsetWidth;
           selectionCanvas.height = videoContainer.offsetHeight;
-          selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
         } else {
-          // Exit selection mode without taking screenshot
           selectionCanvas.style.display = 'none';
-          screenshotBtn.textContent = 'Screenshot';
+          screenshotBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Analyze Screen';
           isSelecting = false;
-          selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
         }
-      } else {
-        alert('No video stream available or video is paused.');
       }
     });
 
     selectionCanvas.addEventListener('mousedown', (e) => {
       if (isSelecting) {
         const rect = selectionCanvas.getBoundingClientRect();
-        const { renderedWidth, renderedHeight, offsetX, offsetY } = getVideoRenderedDimensions();
-
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        // Adjust mouse coordinates relative to the rendered video area on the canvas
-        selectionStartX = mouseX - offsetX;
-        selectionStartY = mouseY - offsetY;
-
+        const { offsetX, offsetY } = getVideoRenderedDimensions();
+        selectionStartX = e.clientX - rect.left - offsetX;
+        selectionStartY = e.clientY - rect.top - offsetY;
         selectionCurrentX = selectionStartX;
         selectionCurrentY = selectionStartY;
-
-        // Set canvas dimensions to match video container dimensions for accurate drawing
-        selectionCanvas.width = videoContainer.offsetWidth;
-        selectionCanvas.height = videoContainer.offsetHeight;
-        selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
       }
     });
 
@@ -294,71 +389,53 @@
       if (isSelecting && selectionStartX !== undefined) {
         const rect = selectionCanvas.getBoundingClientRect();
         const { offsetX, offsetY } = getVideoRenderedDimensions();
-
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        selectionCurrentX = mouseX - offsetX;
-        selectionCurrentY = mouseY - offsetY;
+        selectionCurrentX = e.clientX - rect.left - offsetX;
+        selectionCurrentY = e.clientY - rect.top - offsetY;
 
         selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-        selectionCtx.strokeStyle = 'red';
-        selectionCtx.lineWidth = 2;
-        // Draw the rectangle using coordinates relative to the rendered video area on the canvas
+        selectionCtx.strokeStyle = '#4285f4';
+        selectionCtx.lineWidth = 3;
+        selectionCtx.setLineDash([5, 5]);
         selectionCtx.strokeRect(offsetX + selectionStartX, offsetY + selectionStartY, selectionCurrentX - selectionStartX, selectionCurrentY - selectionStartY);
+        
+        // Highlight selection area
+        selectionCtx.fillStyle = 'rgba(66, 133, 244, 0.1)';
+        selectionCtx.fillRect(offsetX + selectionStartX, offsetY + selectionStartY, selectionCurrentX - selectionStartX, selectionCurrentY - selectionStartY);
       }
     });
 
     selectionCanvas.addEventListener('mouseup', () => {
       if (isSelecting && selectionStartX !== undefined) {
-        isSelecting = false;
-        selectionCanvas.style.display = 'none';
-        screenshotBtn.textContent = 'Screenshot';
-
         const { renderedWidth, renderedHeight, offsetX, offsetY } = getVideoRenderedDimensions();
+        const x = Math.min(selectionStartX, selectionCurrentX);
+        const y = Math.min(selectionStartY, selectionCurrentY);
+        const w = Math.abs(selectionCurrentX - selectionStartX);
+        const h = Math.abs(selectionCurrentY - selectionStartY);
 
-        // Calculate selection coordinates relative to the rendered video area on the canvas
-        const x_rendered_on_canvas = Math.min(selectionStartX, selectionCurrentX);
-        const y_rendered_on_canvas = Math.min(selectionStartY, selectionCurrentY);
-        const width_rendered_on_canvas = Math.abs(selectionCurrentX - selectionStartX);
-        const height_rendered_on_canvas = Math.abs(selectionCurrentY - selectionStartY);
-
-        if (width_rendered_on_canvas > 0 && height_rendered_on_canvas > 0) {
-          // Scale rendered coordinates to video's intrinsic resolution
-          const x_intrinsic = (x_rendered_on_canvas / renderedWidth) * video.videoWidth;
-          const y_intrinsic = (y_rendered_on_canvas / renderedHeight) * video.videoHeight;
-          const width_intrinsic = (width_rendered_on_canvas / renderedWidth) * video.videoWidth;
-          const height_intrinsic = (height_rendered_on_canvas / renderedHeight) * video.videoHeight;
+        if (w > 5 && h > 5) {
+          const x_i = (x / renderedWidth) * video.videoWidth;
+          const y_i = (y / renderedHeight) * video.videoHeight;
+          const w_i = (w / renderedWidth) * video.videoWidth;
+          const h_i = (h / renderedHeight) * video.videoHeight;
 
           const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = width_intrinsic;
-          tempCanvas.height = height_intrinsic;
-          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = w_i;
+          tempCanvas.height = h_i;
+          tempCanvas.getContext('2d').drawImage(video, x_i, y_i, w_i, h_i, 0, 0, w_i, h_i);
 
-          tempCtx.drawImage(video, x_intrinsic, y_intrinsic, width_intrinsic, height_intrinsic, 0, 0, width_intrinsic, height_intrinsic);
-
-          const dataURL = tempCanvas.toDataURL('image/png');
+          analysisContent.innerHTML = '<div class="analysis-loading"><div class="loader" style="width:20px; height:20px; margin:0;"></div> Analyzing with Gemini...</div>';
+          togglePanel(true);
           
-          // Send to Gemini for analysis
-          const base64Image = dataURL.split(',')[1];
-          console.log('Sending to Gemini for analysis...');
           socket.send(JSON.stringify({
             type: 'analyze-image',
-            image: base64Image
+            image: tempCanvas.toDataURL('image/png').split(',')[1]
           }));
-
-          const a = document.createElement('a');
-          a.href = dataURL;
-          a.download = `screenshot-area-${new Date().toISOString()}.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } else {
-          alert('No area selected for screenshot.');
         }
-        selectionStartX = undefined; // Reset selection coordinates
-        selectionStartY = undefined;
-        selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+
+        isSelecting = false;
+        selectionCanvas.style.display = 'none';
+        screenshotBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Analyze Screen';
+        selectionStartX = undefined;
       }
     });
   </script>

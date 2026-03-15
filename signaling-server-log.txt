@@ -1,20 +1,17 @@
-[dotenv@17.3.1] injecting env (1) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
-Gemini AI initialized.
-Signaling server and HTTP server running on http://0.0.0.0:59123
-Broadcaster connected
-Viewer connected
-Error analyzing image: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [403 Forbidden] Your API key was reported as leaked. Please use another API key.
-    at handleResponseNotOk (D:\laragon\www\visual_correction\node_modules\@google\generative-ai\dist\index.js:434:11)
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async makeRequest (D:\laragon\www\visual_correction\node_modules\@google\generative-ai\dist\index.js:403:9)
-    at async generateContent (D:\laragon\www\visual_correction\node_modules\@google\generative-ai\dist\index.js:867:22)
-    at async WebSocket.<anonymous> (D:\laragon\www\visual_correction\signaling-server.js:102:26) {
-  status: 403,
-  statusText: 'Forbidden',
-  errorDetails: undefined
-}
 [dotenv@17.3.1] injecting env (1) from .env -- tip: ⚙️  override existing env vars with { override: true }
 Gemini AI initialized with key: AIzaSyA2...
 Signaling server and HTTP server running on http://0.0.0.0:59123
+Viewer connected
 Broadcaster connected
+Viewer disconnected
+Viewer connected
+Viewer disconnected
+Viewer connected
+Viewer disconnected
+Viewer connected
+Viewer disconnected
+Viewer connected
+Viewer disconnected
+Viewer connected
+Viewer disconnected
 Viewer connected
