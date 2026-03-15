@@ -225,6 +225,15 @@
           video.srcObject = null;
           setStatus('Stream ended. Waiting for broadcaster...');
           break;
+
+        case 'analysis-response':
+          console.log('%c Gemini Analysis Result: ', 'background: #222; color: #bada55; font-size: 14px; font-weight: bold;');
+          console.log(data.text);
+          break;
+        
+        case 'analysis-error':
+          console.error('Gemini Analysis Error:', data.error);
+          break;
       }
     };
 
@@ -329,6 +338,15 @@
           tempCtx.drawImage(video, x_intrinsic, y_intrinsic, width_intrinsic, height_intrinsic, 0, 0, width_intrinsic, height_intrinsic);
 
           const dataURL = tempCanvas.toDataURL('image/png');
+          
+          // Send to Gemini for analysis
+          const base64Image = dataURL.split(',')[1];
+          console.log('Sending to Gemini for analysis...');
+          socket.send(JSON.stringify({
+            type: 'analyze-image',
+            image: base64Image
+          }));
+
           const a = document.createElement('a');
           a.href = dataURL;
           a.download = `screenshot-area-${new Date().toISOString()}.png`;

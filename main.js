@@ -1,6 +1,7 @@
 const { app, BrowserWindow, desktopCapturer, ipcMain, Tray, Menu } = require('electron');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
 const { fork } = require('child_process');
 
 let tray;
@@ -12,18 +13,23 @@ function startSignalingServer() {
   if (signalingServerProcess) return;
 
   const serverPath = path.join(__dirname, 'signaling-server.js');
+  const logStream = fs.createWriteStream(path.join(__dirname, 'signaling-server-log.txt'), { flags: 'a' });
   
-  // Start the server silently with no terminal output
+  // Start the server and pipe stdout/stderr to signaling-server-log.txt
   signalingServerProcess = fork(serverPath, [], {
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     detached: false
   });
 
+  if (signalingServerProcess.stdout) signalingServerProcess.stdout.pipe(logStream);
+  if (signalingServerProcess.stderr) signalingServerProcess.stderr.pipe(logStream);
+
   signalingServerProcess.on('error', (err) => {
-    // Silently handle or log to a hidden file if absolutely necessary
+    logStream.write(`Process error: ${err.message}\n`);
   });
 
-  signalingServerProcess.on('exit', () => {
+  signalingServerProcess.on('exit', (code) => {
+    logStream.write(`Process exited with code: ${code}\n`);
     signalingServerProcess = null;
   });
 }

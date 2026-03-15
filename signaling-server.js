@@ -4,8 +4,19 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+require('dotenv').config();
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const port = 59123;
+
+// Initialize Gemini AI
+let genAI;
+if (process.env.GEMINI_API_KEY) {
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  console.log(`Gemini AI initialized with key: ${process.env.GEMINI_API_KEY.substring(0, 8)}...`);
+} else {
+  console.warn('GEMINI_API_KEY not found in .env. AI features will be disabled.');
+}
 
 // Create HTTP server
 const server = http.createServer((req, res) => {
@@ -37,7 +48,7 @@ let broadcaster;
 const viewers = new Set();
 
 wss.on('connection', ws => {
-  ws.on('message', message => {
+  ws.on('message', async message => {
     const data = JSON.parse(message.toString());
 
     switch (data.type) {
@@ -48,7 +59,6 @@ wss.on('connection', ws => {
       case 'viewer':
         viewers.add(ws);
         console.log('Viewer connected');
-        // Removed: broadcaster.send(JSON.stringify({ type: 'viewer-connected' }));
         break;
       case 'offer':
         viewers.forEach(viewer => {
@@ -74,9 +84,33 @@ wss.on('connection', ws => {
             broadcaster.send(JSON.stringify({ type: 'candidate', candidate: data.candidate }));
           }
         }
+        break;
       case 'request-offer':
         if (broadcaster) {
           broadcaster.send(JSON.stringify({ type: 'viewer-connected' }));
+        }
+        break;
+      case 'analyze-image':
+        if (!genAI) {
+          ws.send(JSON.stringify({ type: 'analysis-error', error: 'AI features are not configured on the server.' }));
+          break;
+        }
+        try {
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const prompt = "The user has selected an area of their screen. Extract all text (OCR) and answer any questions if present. Provide a concise explanation.";
+          
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: data.image, mimeType: "image/png" } }
+          ]);
+          
+          ws.send(JSON.stringify({
+            type: 'analysis-response',
+            text: result.response.text()
+          }));
+        } catch (error) {
+          console.error('Error analyzing image:', error);
+          ws.send(JSON.stringify({ type: 'analysis-error', error: 'Failed to analyze image with AI.' }));
         }
         break;
       default:
@@ -98,8 +132,6 @@ wss.on('connection', ws => {
       console.log('Viewer disconnected');
     }
   });
-
-  
 });
 
 server.listen(port, '0.0.0.0', () => {
