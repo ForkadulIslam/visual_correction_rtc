@@ -7,22 +7,25 @@
   <style>
     :root {
       --primary-color: #4285f4;
-      --bg-dark: #121212;
-      --panel-bg: rgba(30, 30, 30, 0.95);
-      --text-main: #e0e0e0;
+      --bg-dark: #000000;
+      --panel-bg: rgba(20, 20, 20, 0.85); /* Semi-transparent */
+      --text-main: #ffffff;
       --accent: #bada55;
     }
 
-    body {
+    body, html {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       background-color: var(--bg-dark);
       overflow: hidden;
       color: var(--text-main);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
 
-    .videoContainer {
+    /* Main Container */
+    .view-root {
       position: relative;
       width: 100vw;
       height: 100vh;
@@ -31,13 +34,15 @@
       align-items: center;
     }
 
-    .videoContainer video {
+    /* Video scaling */
+    #remoteVideo {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
-      box-shadow: 0 0 50px rgba(0,0,0,0.5);
+      z-index: 1;
     }
 
+    /* Selection Layer */
     #selectionCanvas {
       position: absolute;
       top: 0;
@@ -50,175 +55,220 @@
       z-index: 10;
     }
 
+    /* Status Overlay */
     #statusOverlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.8);
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.9);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      font-size: 1.2em;
-      text-align: center;
-      z-index: 20;
+      z-index: 100;
     }
 
     .loader {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid var(--primary-color);
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top: 3px solid var(--primary-color);
       border-radius: 50%;
       width: 40px;
       height: 40px;
       animation: spin 1s linear infinite;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    #controls {
+    /* Left Side Controls */
+    .side-controls {
       position: absolute;
-      bottom: 25px;
-      right: 25px;
+      left: 20px; /* Moved to left */
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
+      flex-direction: column;
       gap: 15px;
-      z-index: 30;
+      z-index: 50;
     }
 
-    .btn {
-      padding: 12px 24px;
-      background-color: rgba(60, 60, 60, 0.8);
+    .action-btn {
+      width: 50px;
+      height: 50px;
+      background: rgba(40, 40, 40, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       color: white;
-      border: 1px solid #444;
-      border-radius: 8px;
       cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      backdrop-filter: blur(5px);
       display: flex;
+      justify-content: center;
       align-items: center;
-      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
-    .btn:hover {
-      background-color: var(--primary-color);
-      border-color: var(--primary-color);
-      transform: translateY(-2px);
+    .action-btn:hover {
+      background: var(--primary-color);
+      transform: scale(1.05);
     }
 
-    .btn:active {
-      transform: translateY(0);
+    .action-btn.active {
+      background: #ff4444;
+      border-color: #ff4444;
     }
 
+    /* Analysis Panel */
     #analysisPanel {
       position: absolute;
-      top: 20px;
-      right: -450px; /* Hidden by default */
+      top: 0;
+      left: -420px; /* Hidden state - Moved to left */
       width: 400px;
-      max-height: calc(100vh - 40px);
+      height: 100vh;
       background: var(--panel-bg);
-      border-left: 4px solid var(--primary-color);
-      border-radius: 12px 0 0 12px;
-      padding: 25px;
-      overflow-y: auto;
-      transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      z-index: 40;
-      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(15px);
+      border-right: 1px solid rgba(255, 255, 255, 0.1); /* Border on right now */
+      transition: left 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
     }
 
     #analysisPanel.visible {
-      right: 0;
+      left: 0; /* Visible state - Moved to left */
     }
 
     .panel-header {
+      padding: 25px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #444;
-      padding-bottom: 10px;
     }
 
-    .panel-title {
-      color: var(--primary-color);
-      font-size: 1.4em;
+    .panel-header h2 {
       margin: 0;
+      font-size: 1.2em;
+      color: var(--primary-color);
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .close-btn {
+    .close-panel {
       background: none;
       border: none;
       color: #888;
+      font-size: 24px;
       cursor: pointer;
-      font-size: 1.5em;
     }
 
-    .close-btn:hover {
-      color: white;
-    }
-
-    #analysisContent {
+    .panel-content {
+      flex: 1;
+      padding: 25px;
+      overflow-y: auto;
       line-height: 1.6;
-      font-size: 1em;
-      white-space: pre-wrap;
+      font-size: 0.95em;
     }
 
-    .analysis-loading {
+    .panel-content strong {
+      display: block;
+      margin-top: 20px;
+      color: var(--accent);
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Structured Answer UI */
+    .answer-card {
+      background: rgba(66, 133, 244, 0.15);
+      border: 1px solid rgba(66, 133, 244, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .section-label {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      color: var(--primary-color);
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .main-answer {
+      font-size: 1.3em;
+      font-weight: 600;
+      line-height: 1.4;
+      color: #fff;
+    }
+
+    .logic-text {
+      font-size: 0.95em;
+      line-height: 1.6;
+      color: #ccc;
+      padding-left: 5px;
+      border-left: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .task-summary {
+      font-size: 0.85em;
+      color: #666;
+      font-style: italic;
+      margin-top: 30px;
+      text-align: right;
+    }
+
+    .loading-text {
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #aaa;
-      font-style: italic;
-    }
-
-    /* Markdown-ish styling for Gemini output */
-    #analysisContent strong {
-      color: var(--accent);
-      display: block;
-      margin-top: 15px;
-      font-size: 1.1em;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  
-  <div id="videoContainer" class="videoContainer">
+
+  <div class="view-root">
+    <!-- Shared Screen -->
     <video id="remoteVideo" autoplay playsinline muted></video>
-    <canvas id="selectionCanvas"></canvas>
     
-    <div id="statusOverlay">
-      <div class="loader"></div>
-      <div id="statusText">Connecting to server...</div>
+    <!-- Interaction Layer -->
+    <canvas id="selectionCanvas"></canvas>
+
+    <!-- Left Side Buttons -->
+    <div class="side-controls">
+      <button id="screenshotBtn" class="action-btn" title="Analyze Screen Area">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8m-4-4h8"/></svg>
+      </button>
+      <button id="togglePanelBtn" class="action-btn" title="View Results">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </button>
     </div>
 
+    <!-- Results Panel -->
     <div id="analysisPanel">
       <div class="panel-header">
-        <h3 class="panel-title"><span>✨</span> Gemini Analysis</h3>
-        <button class="close-btn" onclick="togglePanel(false)">&times;</button>
+        <h2><span>✨</span> Gemini Analysis</h2>
+        <button class="close-panel" id="closePanelBtn">&times;</button>
       </div>
-      <div id="analysisContent">
-        Select an area to begin analysis...
+      <div id="panelContent" class="panel-content">
+        <p style="color: #666;">Ready for analysis. Click the [+] button to select an area.</p>
       </div>
     </div>
-  </div>
 
-  <div id="controls">
-    <button id="screenshotBtn" class="btn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-      Analyze Screen
-    </button>
+    <!-- Connection Overlay -->
+    <div id="statusOverlay">
+      <div class="loader"></div>
+      <div id="statusText">Establishing Connection...</div>
+    </div>
   </div>
 
   <script>
-    const socket = new WebSocket('ws://' + location.host); // Fixed to use current host
+    const socket = new WebSocket('ws://' + location.host);
     let peerConnection;
     let iceCandidateQueue = [];
     
@@ -226,42 +276,26 @@
     const statusOverlay = document.getElementById('statusOverlay');
     const statusText = document.getElementById('statusText');
     const screenshotBtn = document.getElementById('screenshotBtn');
-    const videoContainer = document.getElementById('videoContainer');
     const selectionCanvas = document.getElementById('selectionCanvas');
     const selectionCtx = selectionCanvas.getContext('2d');
     const analysisPanel = document.getElementById('analysisPanel');
-    const analysisContent = document.getElementById('analysisContent');
+    const panelContent = document.getElementById('panelContent');
+    const togglePanelBtn = document.getElementById('togglePanelBtn');
+    const closePanelBtn = document.getElementById('closePanelBtn');
 
     let isSelecting = false;
-    let selectionStartX, selectionStartY, selectionCurrentX, selectionCurrentY;
+    let startX, startY, currentX, currentY;
 
-    function togglePanel(show) {
-      if (show) analysisPanel.classList.add('visible');
-      else analysisPanel.classList.remove('visible');
+    // --- Panel Management ---
+    function togglePanel(force) {
+      const show = typeof force === 'boolean' ? force : !analysisPanel.classList.contains('visible');
+      analysisPanel.classList.toggle('visible', show);
     }
 
-    function getVideoRenderedDimensions() {
-      const videoAspectRatio = video.videoWidth / video.videoHeight;
-      const containerWidth = videoContainer.offsetWidth;
-      const containerHeight = videoContainer.offsetHeight;
-      const containerAspectRatio = containerWidth / containerHeight;
+    togglePanelBtn.onclick = () => togglePanel();
+    closePanelBtn.onclick = () => togglePanel(false);
 
-      let renderedWidth, renderedHeight, offsetX, offsetY;
-
-      if (videoAspectRatio > containerAspectRatio) {
-        renderedWidth = containerWidth;
-        renderedHeight = containerWidth / videoAspectRatio;
-        offsetX = 0;
-        offsetY = (containerHeight - renderedHeight) / 2;
-      } else {
-        renderedHeight = containerHeight;
-        renderedWidth = containerHeight * videoAspectRatio;
-        offsetY = 0;
-        offsetX = (containerWidth - renderedWidth) / 2;
-      }
-      return { renderedWidth, renderedHeight, offsetX, offsetY };
-    }
-
+    // --- WebRTC Setup ---
     function setStatus(text) {
       statusText.textContent = text;
       statusOverlay.style.display = 'flex';
@@ -273,17 +307,11 @@
 
     function initializePeerConnection() {
       if (peerConnection) peerConnection.close();
-      video.srcObject = null;
-      iceCandidateQueue = [];
       peerConnection = new RTCPeerConnection();
 
       peerConnection.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          video.srcObject = event.streams[0];
-        } else {
-          video.srcObject = new MediaStream([event.track]);
-        }
-        video.play().then(hideStatus).catch(e => console.error("Video play error:", e));
+        video.srcObject = event.streams[0] || new MediaStream([event.track]);
+        video.play().then(hideStatus).catch(console.error);
       };
 
       peerConnection.onicecandidate = (event) => {
@@ -293,151 +321,148 @@
       };
 
       peerConnection.onconnectionstatechange = () => {
-        if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
-          video.srcObject = null;
-          setStatus('Connection lost. Waiting for broadcaster...');
+        if (['disconnected', 'failed'].includes(peerConnection.connectionState)) {
+          setStatus('Waiting for stream...');
         }
       };
     }
 
     socket.onopen = () => {
-      setStatus('Waiting for stream...');
+      setStatus('Connecting to host...');
       socket.send(JSON.stringify({ type: 'viewer' }));
       socket.send(JSON.stringify({ type: 'request-offer' }));
     };
 
     socket.onmessage = async (message) => {
       const data = JSON.parse(message.data);
-
       switch (data.type) {
         case 'offer':
-          setStatus('Connecting to peer...');
           initializePeerConnection();
           await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-          while(iceCandidateQueue.length > 0) {
-            await peerConnection.addIceCandidate(iceCandidateQueue.shift());
-          }
+          while(iceCandidateQueue.length > 0) await peerConnection.addIceCandidate(iceCandidateQueue.shift());
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
-          socket.send(JSON.stringify({ type: 'answer', answer: { type: answer.type, sdp: answer.sdp } }));
+          socket.send(JSON.stringify({ type: 'answer', answer }));
           break;
-
         case 'candidate':
-          if (data.candidate && data.candidate.sdpMid !== null) {
-            const candidate = new RTCIceCandidate(data.candidate);
-            if (peerConnection && peerConnection.remoteDescription) {
-              await peerConnection.addIceCandidate(candidate);
-            } else {
-              iceCandidateQueue.push(candidate);
-            }
+          if (data.candidate) {
+            const cand = new RTCIceCandidate(data.candidate);
+            if (peerConnection && peerConnection.remoteDescription) await peerConnection.addIceCandidate(cand);
+            else iceCandidateQueue.push(cand);
           }
           break;
-        
-        case 'broadcaster-disconnected':
-          if (peerConnection) peerConnection.close();
-          video.srcObject = null;
-          setStatus('Stream ended. Waiting for broadcaster...');
-          break;
-
         case 'analysis-response':
-          analysisContent.innerHTML = formatAnalysis(data.text);
+          renderStructuredResponse(data.text);
           break;
-        
         case 'analysis-error':
-          analysisContent.innerHTML = `<span style="color: #ff5555;">Error: ${data.error}</span>`;
+          panelContent.innerHTML = `<span style="color: #ff5555;">Error: ${data.error}</span>`;
           break;
       }
     };
 
-    function formatAnalysis(text) {
-      // Simple formatter for the specific Gemini response structure
-      return text
-        .replace(/\*\*Extracted Text \(OCR\) :\s*\*\*/g, '<strong>Extracted Text (OCR)</strong>')
-        .replace(/\*\*Question Present\s*\*\*/g, '<strong>Question Present</strong>')
-        .replace(/\*\*Concise Explanation\s*\*\*/g, '<strong>Concise Explanation</strong>')
-        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    function renderStructuredResponse(rawJson) {
+      try {
+        const data = JSON.parse(rawJson);
+        panelContent.innerHTML = `
+          <div class="answer-card">
+            <span class="section-label">Proposed Solution</span>
+            <div class="main-answer">${md(data.answer)}</div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <span class="section-label">Reasoning</span>
+            <div class="logic-text">${md(data.logic)}</div>
+          </div>
+          <div class="task-summary">${escapeHTML(data.task_summary || '')}</div>
+        `;
+      } catch (e) {
+        panelContent.innerHTML = `<div class="logic-text">${md(rawJson)}</div>`;
+      }
     }
 
-    screenshotBtn.addEventListener('click', () => {
-      if (video.srcObject && !video.paused) {
-        if (!isSelecting) {
-          selectionCanvas.style.display = 'block';
-          screenshotBtn.textContent = 'Cancel Selection';
-          isSelecting = true;
-          selectionCanvas.width = videoContainer.offsetWidth;
-          selectionCanvas.height = videoContainer.offsetHeight;
-        } else {
-          selectionCanvas.style.display = 'none';
-          screenshotBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Analyze Screen';
-          isSelecting = false;
-        }
-      }
-    });
+    function md(text) {
+      if (!text) return '';
+      let safe = escapeHTML(text);
+      return safe
+        .replace(/```(?:[a-z]*)\n([\s\S]*?)```/g, '<div class="ocr-box" style="white-space:pre; margin:10px 0;">$1</div>')
+        .replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.15); padding:2px 4px; border-radius:4px; font-family:monospace; color:var(--accent);">$1</code>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
 
-    selectionCanvas.addEventListener('mousedown', (e) => {
+    function escapeHTML(str) {
+      return str.replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        }[m];
+      });
+    }
+
+    // --- Area Selection ---
+    screenshotBtn.onclick = () => {
+      if (!video.srcObject) return;
+      isSelecting = !isSelecting;
+      screenshotBtn.classList.toggle('active', isSelecting);
+      selectionCanvas.style.display = isSelecting ? 'block' : 'none';
       if (isSelecting) {
-        const rect = selectionCanvas.getBoundingClientRect();
-        const { offsetX, offsetY } = getVideoRenderedDimensions();
-        selectionStartX = e.clientX - rect.left - offsetX;
-        selectionStartY = e.clientY - rect.top - offsetY;
-        selectionCurrentX = selectionStartX;
-        selectionCurrentY = selectionStartY;
+        selectionCanvas.width = window.innerWidth;
+        selectionCanvas.height = window.innerHeight;
       }
-    });
+    };
 
-    selectionCanvas.addEventListener('mousemove', (e) => {
-      if (isSelecting && selectionStartX !== undefined) {
-        const rect = selectionCanvas.getBoundingClientRect();
-        const { offsetX, offsetY } = getVideoRenderedDimensions();
-        selectionCurrentX = e.clientX - rect.left - offsetX;
-        selectionCurrentY = e.clientY - rect.top - offsetY;
+    selectionCanvas.onmousedown = (e) => {
+      if (!isSelecting) return;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
 
-        selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-        selectionCtx.strokeStyle = '#4285f4';
-        selectionCtx.lineWidth = 3;
-        selectionCtx.setLineDash([5, 5]);
-        selectionCtx.strokeRect(offsetX + selectionStartX, offsetY + selectionStartY, selectionCurrentX - selectionStartX, selectionCurrentY - selectionStartY);
+    selectionCanvas.onmousemove = (e) => {
+      if (!isSelecting || startX === undefined) return;
+      currentX = e.clientX;
+      currentY = e.clientY;
+
+      selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+      selectionCtx.strokeStyle = '#4285f4';
+      selectionCtx.lineWidth = 2;
+      selectionCtx.setLineDash([5, 5]);
+      selectionCtx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+      
+      selectionCtx.fillStyle = 'rgba(66, 133, 244, 0.1)';
+      selectionCtx.fillRect(startX, startY, currentX - startX, currentY - startY);
+    };
+
+    selectionCanvas.onmouseup = () => {
+      if (!isSelecting || startX === undefined) return;
+      
+      const vRect = video.getBoundingClientRect();
+      const cropX = (Math.min(startX, currentX) - vRect.left) * (video.videoWidth / vRect.width);
+      const cropY = (Math.min(startY, currentY) - vRect.top) * (video.videoHeight / vRect.height);
+      const cropW = Math.abs(currentX - startX) * (video.videoWidth / vRect.width);
+      const cropH = Math.abs(currentY - startY) * (video.videoHeight / vRect.height);
+
+      if (cropW > 5 && cropH > 5) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = cropW;
+        tempCanvas.height = cropH;
+        tempCanvas.getContext('2d').drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+        panelContent.innerHTML = '<div class="loading-text"><div class="loader" style="width:20px;height:20px;margin:0;"></div> Gemini is analyzing...</div>';
+        togglePanel(true);
         
-        // Highlight selection area
-        selectionCtx.fillStyle = 'rgba(66, 133, 244, 0.1)';
-        selectionCtx.fillRect(offsetX + selectionStartX, offsetY + selectionStartY, selectionCurrentX - selectionStartX, selectionCurrentY - selectionStartY);
+        socket.send(JSON.stringify({
+          type: 'analyze-image',
+          image: tempCanvas.toDataURL('image/png').split(',')[1]
+        }));
       }
-    });
 
-    selectionCanvas.addEventListener('mouseup', () => {
-      if (isSelecting && selectionStartX !== undefined) {
-        const { renderedWidth, renderedHeight, offsetX, offsetY } = getVideoRenderedDimensions();
-        const x = Math.min(selectionStartX, selectionCurrentX);
-        const y = Math.min(selectionStartY, selectionCurrentY);
-        const w = Math.abs(selectionCurrentX - selectionStartX);
-        const h = Math.abs(selectionCurrentY - selectionStartY);
-
-        if (w > 5 && h > 5) {
-          const x_i = (x / renderedWidth) * video.videoWidth;
-          const y_i = (y / renderedHeight) * video.videoHeight;
-          const w_i = (w / renderedWidth) * video.videoWidth;
-          const h_i = (h / renderedHeight) * video.videoHeight;
-
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = w_i;
-          tempCanvas.height = h_i;
-          tempCanvas.getContext('2d').drawImage(video, x_i, y_i, w_i, h_i, 0, 0, w_i, h_i);
-
-          analysisContent.innerHTML = '<div class="analysis-loading"><div class="loader" style="width:20px; height:20px; margin:0;"></div> Analyzing with Gemini...</div>';
-          togglePanel(true);
-          
-          socket.send(JSON.stringify({
-            type: 'analyze-image',
-            image: tempCanvas.toDataURL('image/png').split(',')[1]
-          }));
-        }
-
-        isSelecting = false;
-        selectionCanvas.style.display = 'none';
-        screenshotBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Analyze Screen';
-        selectionStartX = undefined;
-      }
-    });
+      isSelecting = false;
+      startX = undefined;
+      selectionCanvas.style.display = 'none';
+      screenshotBtn.classList.remove('active');
+    };
   </script>
 </body>
 </html>

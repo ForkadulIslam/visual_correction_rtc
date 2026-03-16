@@ -13,7 +13,7 @@ const port = 59123;
 let genAI;
 if (process.env.GEMINI_API_KEY) {
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  console.log(`Gemini AI initialized with key: ${process.env.GEMINI_API_KEY.substring(0, 8)}...`);
+  console.log('Gemini AI successfully initialized from .env');
 } else {
   console.warn('GEMINI_API_KEY not found in .env. AI features will be disabled.');
 }
@@ -96,17 +96,37 @@ wss.on('connection', ws => {
           break;
         }
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          const prompt = "The user has selected an area of their screen. Extract all text (OCR) and answer any questions if present. Provide a concise explanation.";
+          const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+          });
+
+          const prompt = `Act as a Senior Staff Engineer. Analyze the screen area for technical assessment problems. 
+Respond ONLY with a JSON object following this schema:
+{
+  "answer": "The final atomic result ONLY (string). (e.g., 'h1', 'Option B', '42', 'O(n)', or 'Bug on line 12').",
+  "logic": "High-signal reasoning (single string, use Markdown bullets). Max 2-3 bullets. Briefly list Red Flags in distractors.",
+  "task_summary": "Short problem type (string)"
+}
+Rules:
+- THE ENTIRE RESPONSE MUST BE VALID JSON ONLY.
+- "answer" MUST be a short value. NO boilerplate explanation in this field.
+- "logic" MUST be a single string, not an array.
+- Prioritize speed of reading over completeness.
+- No conversational filler. Assume user expertise.`;
           
           const result = await model.generateContent([
             prompt,
             { inlineData: { data: data.image, mimeType: "image/png" } }
           ]);
           
+          const responseText = result.response.text();
+          console.log('--- Gemini JSON Response ---');
+          console.log(responseText);
+          
           ws.send(JSON.stringify({
             type: 'analysis-response',
-            text: result.response.text()
+            text: responseText // Sending the raw JSON string to be parsed by frontend
           }));
         } catch (error) {
           console.error('Error analyzing image:', error);
